@@ -35,6 +35,7 @@ public class Main {
         KeyPair key = null;
         PublicKey pubKey = null;
         PrivateKey privKey = null;
+
         //verify if files exists
         try{
             privateKeyFile = new File(keyPath);
@@ -97,5 +98,21 @@ public class Main {
 
         System.out.println("Data applied cypher: " + cipherText);
 
+
+
+        //decypher the data
+            byte[] dectyptedText = null;
+
+            try {
+                final Cipher cipher = Cipher.getInstance(ALGORITHM);
+                // Decriptografa o texto puro usando a chave Privada
+                cipher.init(Cipher.DECRYPT_MODE, !flagKeyExist ? key.getPrivate() : privKey);
+                dectyptedText = cipher.doFinal(cipherText);
+
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+
+            System.out.println(new String(dectyptedText));
     }
 }
