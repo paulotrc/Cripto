@@ -38,6 +38,7 @@ public class Main {
         String slashSeparator = "/";
 
         //home/paulotrc/Desenvolvimento/chaves/publicKey.key
+        //c:/Dev/chave/publicKey.key
         //Teste de validaço de cypher
 
         //verify if files exists
