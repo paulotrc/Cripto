@@ -35,11 +35,18 @@ public class Main {
         KeyPair key = null;
         PublicKey pubKey = null;
         PrivateKey privKey = null;
+        String slashSeparator = "/";
+
+        //home/paulotrc/Desenvolvimento/chaves/publicKey.key
+        //Teste de validaço de cypher
 
         //verify if files exists
         try{
+            if(System.getProperty("os.name").toLowerCase().contains("windows")){
+                slashSeparator = "\\";
+            }
             privateKeyFile = new File(keyPath);
-            pathOfFile = (privateKeyFile.getPath().substring(0, privateKeyFile.getPath().lastIndexOf("/") + 1));
+            pathOfFile = (privateKeyFile.getPath().substring(0, privateKeyFile.getPath().lastIndexOf(slashSeparator) + 1));
             if(!privateKeyFile.exists()){
                 publicKeyFile = new File(pathOfFile + "publicKey.key");
                 flagKeyExist = false;
@@ -52,7 +59,7 @@ public class Main {
         if(!flagKeyExist){
             try {
                 final KeyPairGenerator keyGen = KeyPairGenerator.getInstance(ALGORITHM);
-                keyGen.initialize(4096);
+                keyGen.initialize(1024);
                 key = keyGen.generateKeyPair();
 
                 if (privateKeyFile.getParentFile() != null) {
@@ -90,7 +97,7 @@ public class Main {
         try {
             final Cipher cipher = Cipher.getInstance(ALGORITHM);
             // Criptografa o texto puro usando a chave Púlica
-            cipher.init(Cipher.ENCRYPT_MODE, !flagKeyExist ? key.getPublic() : pubKey);
+            cipher.init(Cipher.ENCRYPT_MODE, !flagKeyExist ? key.getPrivate() : privKey);
             cipherText = cipher.doFinal(dataInfoToCypher.getBytes());
         } catch (Exception e) {
             e.printStackTrace();
@@ -106,7 +113,7 @@ public class Main {
             try {
                 final Cipher cipher = Cipher.getInstance(ALGORITHM);
                 // Decriptografa o texto puro usando a chave Privada
-                cipher.init(Cipher.DECRYPT_MODE, !flagKeyExist ? key.getPrivate() : privKey);
+                cipher.init(Cipher.DECRYPT_MODE, !flagKeyExist ? key.getPublic() : pubKey);
                 dectyptedText = cipher.doFinal(cipherText);
 
             } catch (Exception ex) {
