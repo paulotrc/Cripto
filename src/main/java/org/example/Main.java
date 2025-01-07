@@ -12,115 +12,91 @@ import java.util.Scanner;
 public class Main {
 
     private static final String ALGORITHM = "RSA";
-    private static Scanner imputReader = new Scanner(System.in);
+    private static final int KEY_SIZE = 2048;
+    private static final Scanner INPUT_READER = new Scanner(System.in);
 
-
-    public static void main(String[] args) throws IOException, ClassNotFoundException {
-
-        //Read keys
-        System.out.println("Enter the path of private key to apply to cypher the data");
-        System.out.println("Please identify in the same directory if exists public key as \"'publicKey.key'\" and private key as \"'privateKey.key'\" files");
-        System.out.println("If the private key doesn't exists, private and public keys will be created in the path informed. Don't worry.");
-        String keyPath = imputReader.nextLine();
-
-        System.out.println("Enter the data to cypher");
-        String dataInfoToCypher = imputReader.nextLine();
-
-        boolean flagKeyExist = true;
-        String pathOfFile = null;
-        File privateKeyFile = null;
-        File publicKeyFile = null;
-        ObjectOutputStream privateKeyStream = null;
-        ObjectOutputStream publicKeyStream = null;
-        KeyPair key = null;
-        PublicKey pubKey = null;
-        PrivateKey privKey = null;
-        String slashSeparator = "/";
-
-        //home/paulotrc/Desenvolvimento/chaves/publicKey.key
-        //c:/Dev/chave/publicKey.key
-        //Teste de validaço de cypher
-
-        //verify if files exists
-        try{
-            if(System.getProperty("os.name").toLowerCase().contains("windows")){
-                slashSeparator = "\\";
-            }
-            privateKeyFile = new File(keyPath);
-            pathOfFile = (privateKeyFile.getPath().substring(0, privateKeyFile.getPath().lastIndexOf(slashSeparator) + 1));
-            if(!privateKeyFile.exists()){
-                publicKeyFile = new File(pathOfFile + "publicKey.key");
-                flagKeyExist = false;
-            }
-        }catch (Exception e){
-            flagKeyExist = false;
-        }
-
-        //Create keys if doesn't exist
-        if(!flagKeyExist){
-            try {
-                final KeyPairGenerator keyGen = KeyPairGenerator.getInstance(ALGORITHM);
-                keyGen.initialize(1024);
-                key = keyGen.generateKeyPair();
-
-                if (privateKeyFile.getParentFile() != null) {
-                    privateKeyFile.getParentFile().mkdirs();
-                }
-
-                privateKeyFile.createNewFile();
-
-                if (publicKeyFile.getParentFile() != null) {
-                    publicKeyFile.getParentFile().mkdirs();
-                }
-
-                publicKeyFile.createNewFile();
-
-                privateKeyStream = new ObjectOutputStream(
-                        new FileOutputStream(privateKeyFile));
-                privateKeyStream.writeObject(key.getPrivate());
-                privateKeyStream.close();
-
-                publicKeyStream = new ObjectOutputStream(
-                        new FileOutputStream(publicKeyFile));
-                publicKeyStream.writeObject(key.getPublic());
-                publicKeyStream.close();
-
-            }catch (Exception e){
-                e.printStackTrace();
-            }
-        }else{
-            ObjectInputStream inputStream = new ObjectInputStream(new FileInputStream(pathOfFile + "publicKey.key"));
-            pubKey = (RSAPublicKey) inputStream.readObject();
-        }
-
-        //Cypher the data
-        byte[] cipherText = null;
+    public static void main(String[] args) {
         try {
-            final Cipher cipher = Cipher.getInstance(ALGORITHM);
-            // Criptografa o texto puro usando a chave Púlica
-            cipher.init(Cipher.ENCRYPT_MODE, !flagKeyExist ? key.getPrivate() : privKey);
-            cipherText = cipher.doFinal(dataInfoToCypher.getBytes());
+            String keyPath = getKeyPathFromUser();
+            String dataToEncrypt = getDataFromUser();
+
+            File privateKeyFile = new File(keyPath);
+            KeyPair keyPair = loadOrCreateKeyPair(privateKeyFile);
+
+            byte[] encryptedData = encryptData(dataToEncrypt, keyPair.getPublic());
+            System.out.println("Data encrypted: " + new String(encryptedData));
+
+            byte[] decryptedData = decryptData(encryptedData, keyPair.getPrivate());
+            System.out.println("Decrypted data: " + new String(decryptedData));
+
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
 
-        System.out.println("Data applied cypher: " + cipherText);
+    private static String getKeyPathFromUser() {
+        System.out.println("Enter the path of private key to apply to encrypt the data. Example Windows: c:/keycripto/privateKey.key");
+        System.out.println("Please identify in the same directory if exists public key as 'publicKey.key' and private key as 'privateKey.key' files");
+        System.out.println("If the private key doesn't exist, private and public keys will be created.");
+        return INPUT_READER.nextLine();
+    }
 
+    private static String getDataFromUser() {
+        System.out.println("Enter the data to encrypt");
+        return INPUT_READER.nextLine();
+    }
 
+    private static KeyPair loadOrCreateKeyPair(File privateKeyFile) throws Exception {
+        File publicKeyFile = new File(privateKeyFile.getParent(), "publicKey.key");
 
-        //decypher the data
-            byte[] dectyptedText = null;
+        // Verifica se as chaves já existem
+        if (privateKeyFile.exists()) {
+            return loadKeyPair(privateKeyFile, publicKeyFile);
+        } else {
+            return createKeyPair(privateKeyFile, publicKeyFile);
+        }
+    }
 
-            try {
-                final Cipher cipher = Cipher.getInstance(ALGORITHM);
-                // Decriptografa o texto puro usando a chave Privada
-                cipher.init(Cipher.DECRYPT_MODE, !flagKeyExist ? key.getPublic() : pubKey);
-                dectyptedText = cipher.doFinal(cipherText);
+    private static KeyPair loadKeyPair(File privateKeyFile, File publicKeyFile) throws IOException, ClassNotFoundException {
+        try (ObjectInputStream privateKeyStream = new ObjectInputStream(new FileInputStream(privateKeyFile));
+             ObjectInputStream publicKeyStream = new ObjectInputStream(new FileInputStream(publicKeyFile))) {
 
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
+            PrivateKey privateKey = (PrivateKey) privateKeyStream.readObject();
+            PublicKey publicKey = (RSAPublicKey) publicKeyStream.readObject();
+            return new KeyPair(publicKey, privateKey);
+        }
+    }
 
-            System.out.println(new String(dectyptedText));
+    private static KeyPair createKeyPair(File privateKeyFile, File publicKeyFile) throws Exception {
+        KeyPairGenerator keyGen = KeyPairGenerator.getInstance(ALGORITHM);
+        keyGen.initialize(KEY_SIZE); // Usando 2048 bits para maior segurança
+        KeyPair keyPair = keyGen.generateKeyPair();
+
+        // Salva as chaves nos arquivos
+        saveKeyToFile(privateKeyFile, keyPair.getPrivate());
+        saveKeyToFile(publicKeyFile, keyPair.getPublic());
+
+        return keyPair;
+    }
+
+    private static void saveKeyToFile(File keyFile, Object key) throws IOException {
+        if (keyFile.getParentFile() != null && !keyFile.getParentFile().exists()) {
+            keyFile.getParentFile().mkdirs();
+        }
+        try (ObjectOutputStream keyStream = new ObjectOutputStream(new FileOutputStream(keyFile))) {
+            keyStream.writeObject(key);
+        }
+    }
+
+    private static byte[] encryptData(String data, PublicKey publicKey) throws Exception {
+        Cipher cipher = Cipher.getInstance(ALGORITHM);
+        cipher.init(Cipher.ENCRYPT_MODE, publicKey);
+        return cipher.doFinal(data.getBytes());
+    }
+
+    private static byte[] decryptData(byte[] data, PrivateKey privateKey) throws Exception {
+        Cipher cipher = Cipher.getInstance(ALGORITHM);
+        cipher.init(Cipher.DECRYPT_MODE, privateKey);
+        return cipher.doFinal(data);
     }
 }
